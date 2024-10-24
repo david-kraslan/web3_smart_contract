@@ -1,0 +1,228 @@
+name: CI Pipeline Web3 Smart Contract
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./smart_contract
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.1.7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.0.3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Super Linter
+        uses: github/super-linter@v5
+        env:
+          ##these linters are not needed, disabling them
+          VALIDATE_ANSIBLE: false
+          VALIDATE_ARM: false
+          VALIDATE_CPP: false
+          VALIDATE_CHECKOV: false
+          VALIDATE_CLANG_FORMAT: false
+          VALIDATE_CLOJURE: false
+          VALIDATE_CLOUDFORMATION: false
+          VALIDATE_COFFEESCRIPT: false
+          VALIDATE_CSHARP: false
+          VALIDATE_CSS: false
+          VALIDATE_DART: false
+          VALIDATE_DOTNET_SLN_FORMAT_ANALYZERS: false
+          VALIDATE_DOTNET_SLN_FORMAT_STYLE: false
+          VALIDATE_DOTNET_SLN_FORMAT_WHITESPACE: false
+          VALIDATE_EDITORCONFIG: false
+          VALIDATE_GHERKIN: false
+          VALIDATE_GO: false
+          VALIDATE_GO_MODULES: false
+          VALIDATE_GO_RELEASER: false
+          VALIDATE_GRAPHQL_PRETTIER: false
+          VALIDATE_GOOGLE_JAVA_FORMAT: false
+          VALIDATE_GROOVY: false
+          VALIDATE_HTML: false
+          VALIDATE_JAVA: false
+          VALIDATE_JAVASCRIPT_STANDARD: false
+          VALIDATE_JSON: false
+          VALIDATE_JSX: false
+          VALIDATE_KOTLIN: false
+          VALIDATE_LATEX: false
+          VALIDATE_LUA: false
+          VALIDATE_MARKDOWN: false
+          VALIDATE_MARKDOWN_PRETTIER: false
+          VALIDATE_OPENAPI: false
+          VALIDATE_PERL: false
+          VALIDATE_PHP: false
+          VALIDATE_PHP_BUILTIN: false
+          VALIDATE_PHP_PHPCS: false
+          VALIDATE_PHP_PHPSTAN: false
+          VALIDATE_PHP_PSALM: false
+          VALIDATE_POWERSHELL: false
+          VALIDATE_PROTOBUF: false
+          VALIDATE_PYTHON: false
+          VALIDATE_PYTHON_BLACK: false
+          VALIDATE_PYTHON_FLAKE8: false
+          VALIDATE_PYTHON_ISORT: false
+          VALIDATE_PYTHON_MYPY: false
+          VALIDATE_PYTHON_PYINK: false
+          VALIDATE_PYTHON_PYLINT: false
+          VALIDATE_PYTHON_RUFF: false
+          VALIDATE_R: false
+          VALIDATE_RAKU: false
+          VALIDATE_RENOVATE: false
+          VALIDATE_RUBY: false
+          VALIDATE_RUST_2015: false
+          VALIDATE_RUST_2018: false
+          VALIDATE_RUST_2021: false
+          VALIDATE_RUST_CLIPPY: false
+          VALIDATE_SCALAFMT: false
+          VALIDATE_SHELL_SHFMT: false
+          VALIDATE_SNAKEMAKE_LINT: false
+          VALIDATE_SNAKEMAKE_SNAKEFMT: false
+          VALIDATE_STATES: false
+          VALIDATE_SQLFLUFF: false
+          VALIDATE_TEKTON: false
+          VALIDATE_TERRAFORM_FMT: false
+          VALIDATE_TERRAFORM_TERRASCAN: false
+          VALIDATE_TERRAFORM_TFLINT: false
+          VALIDATE_TERRAGRUNT: false
+          VALIDATE_TSX: false
+          VALIDATE_TYPESCRIPT_ES: false
+          VALIDATE_TYPESCRIPT_PRETTIER: false
+          VALIDATE_TYPESCRIPT_STANDARD: false
+          VALIDATE_VUE_PRETTIER: false
+          VALIDATE_YAML: false
+          ##Super Lint settings
+          VALIDATE_ALL_CODEBASE: false
+          IGNORE_GITIGNORED_FILES: true
+          DEFAULT_BRANCH: main
+          SAVE_SUPER_LINTER_OUTPUT: true
+          DISABLE_ERRORS: true ##Dont use in production environment!!!!!
+          CREATE_LOG_FILE: true
+          LOG_FILE: super-linter-report.log
+          LOG_LEVEL: ERROR
+          SUPER_LINTER_OUTPUT_DIRECTORY_NAME: super-linter-output
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
+
+  client-build:
+    name: Build Smart Contract Code
+    runs-on: ubuntu-latest
+    needs: lint
+    defaults:
+      run:
+        working-directory: ./smart_contract
+    strategy:
+      matrix:
+        node-version: [18.x]
+        architecture: [x64]
+    steps:
+      - name: Check-out Code  
+        uses: actions/checkout@v4.1.7
+
+      - name: Setup Node.js ${{ matrix.node-version }} - ${{ matrix.architecture }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install project dependencies 
+        run: npm ci
+        env:
+          CI: true
+
+      - name: Build
+        run: npx hardhat compile
+
+  sonarcloud:
+    name: SonarCloud Quality Gate
+    runs-on: ubuntu-latest
+    needs: client-build
+    defaults:
+      run:
+        working-directory: ./smart_contract
+    steps:
+      - name: Check-out Code  
+        uses: actions/checkout@v4.1.7
+
+      - name: Setup SonarQube
+        uses: warchant/setup-sonar-scanner@v8
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: smart_contract
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.host.url=${{ secrets.SONAR_URL }}
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+            -Dsonar.sources=contracts/,scripts/
+            -Dsonar.verbose=true
+
+  docker_image:
+    name: Build, Scan and push Smart Contract Docker Image to ECR
+    runs-on: ubuntu-latest
+    needs: sonarcloud
+    defaults:
+      run:
+        working-directory: ./smart_contract
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.1.7
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2.0.1
+
+      - name: Build Docker image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.ECR_SMART_CONTRACT_REPOSITORY_NAME }}
+          IMAGE_TAG: latest
+        run: |
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          echo "image=$REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Snyk Docker image vulnerability scan
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ env.image }}
+        continue-on-error: true ##Dont use in production environment!!!!!
+
+      - name: Trivy Docker image vulnerability scan
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: '${{ env.image }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true ##Dont use in production environment!!!!!
+
+      - name: Push into ECR
+        run: docker push ${{ env.image }}

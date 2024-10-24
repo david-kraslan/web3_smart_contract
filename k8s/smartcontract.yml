@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smartcontract-deployment
+  namespace: web3app
+  labels:
+    app: smartcontract
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: smartcontract
+  template:
+    metadata:
+      labels:
+        app: smartcontract
+    spec:
+      containers:
+      - name: smartcontract
+        image: 376801182676.dkr.ecr.eu-north-1.amazonaws.com/web3/smartcontract:latest
+        ports:
+        - containerPort: 8545
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smartcontract-service
+  namespace: web3app
+spec:
+  selector:
+    app: smartcontract
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 8545
+      targetPort: 8545
+
