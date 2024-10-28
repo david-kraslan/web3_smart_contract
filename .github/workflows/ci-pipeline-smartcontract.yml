@@ -200,7 +200,7 @@ jobs:
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           REPOSITORY: ${{ secrets.ECR_SMART_CONTRACT_REPOSITORY_NAME }}
-          IMAGE_TAG: latest
+          IMAGE_TAG: 0.1.0
         run: |
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
           echo "image=$REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
