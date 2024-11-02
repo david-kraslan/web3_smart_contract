@@ -27,25 +27,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Load Unused Linters
-        run: |
-          # Load variables from .env file into environment
-          set -o allexport
-          source .github/super-linter-unused.env
-          set +o allexport
-
       - name: Run Super Linter
         uses: github/super-linter@v5
         env:
-          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_ALL_CODEBASE: true
           IGNORE_GITIGNORED_FILES: true
-          DEFAULT_BRANCH: main
-          SAVE_SUPER_LINTER_OUTPUT: true
-          SUPER_LINTER_OUTPUT_DIRECTORY_NAME: super-linter-output
-          CREATE_LOG_FILE: true
-          LOG_FILE: ./super-linter-output/super-linter-report.log
-          LOG_LEVEL: ERROR
           DISABLE_ERRORS: true ##Dont use in production environment!!!!!
+          VALIDATE_JAVASCRIPT_ES: true
+          VALIDATE_GITHUB_ACTIONS: true
+          VALIDATE_GITLEAKS: true
+          VALIDATE_DOCKERFILE_HADOLINT: true
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
 
   smart-contract-build:
