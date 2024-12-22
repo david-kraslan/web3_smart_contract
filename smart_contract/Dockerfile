@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies
-RUN npm install
+RUN npm ci
 
 # Copy the entire project into the container (excluding files in .dockerignore)
 COPY . .
@@ -37,7 +37,7 @@ COPY --from=build /app/contracts ./contracts
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/hardhat.config.* ./
 
-# Expose Hardhat port 8545
+# Expose port 8545
 EXPOSE 8545
 
 # Run the Hardhat node
