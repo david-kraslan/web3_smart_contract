@@ -1,24 +1,29 @@
+# Ignore node_modules directory to prevent copying dependencies into the Docker image
 node_modules
-npm-debug.log
-yarn-error.log
-package-lock.json
-yarn.lock
-logs
-*.log
-cache/
-artifacts/
-.env
-Dockerfile
-.dockerignore
+
+# Ignore .git directory as it’s not needed for building or running the application
 .git
-.gitignore
+
+# Ignore environment variable files, such as .env, to prevent exposing sensitive data
+.env
+
+# Ignore log files that might be generated during development
+*.log
+
+# Ignore markdown files, which are typically documentation files and not needed in the Docker image
+*.md
+
+# Ignore the build directory if present, as it may contain unnecessary compiled files from prior builds
+build
+
+# Ignore any temporary files or IDE-related files that are not needed in the image
+.vscode
+.idea
 .DS_Store
-Thumbs.db
-*.swp
-*.swo
-.vscode/
-.idea/
-*.bak
-*.tmp
-coverage/
-*.tsbuildinfo
+
+# Ignore test or coverage files, which aren’t required in the production environment
+coverage
+
+# Ignore Dockerfile itself if you are doing builds that don’t need it
+Dockerfile
+
